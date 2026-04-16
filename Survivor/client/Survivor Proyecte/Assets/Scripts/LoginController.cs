@@ -1,21 +1,23 @@
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEngine.Networking;
+using UnityEngine.SceneManagement; // Importante para cambiar de escena
 using System.Collections;
 using System.Text;
 
 public class LoginController : MonoBehaviour
 {
-    // 1. Declaramos las variables de los paneles
     private VisualElement loginPanel;
     private VisualElement menuPanel;
 
-    // Variables de los inputs
     private TextField usernameField;
     private TextField passwordField;
     private Label statusLabel;
     private Button loginButton;
     private Button registerButton;
+    
+    // Nuevo: Botón de Singleplayer
+    private Button singlePlayerButton;
 
     private string backendUrl = "http://localhost:3000/api/users";
 
@@ -23,41 +25,53 @@ public class LoginController : MonoBehaviour
     {
         var root = GetComponent<UIDocument>().rootVisualElement;
 
-        // 2. Buscamos los PANELES por su nombre en el UXML
+        // 1. Referencias de Paneles
         loginPanel = root.Q<VisualElement>("login-panel");
         menuPanel = root.Q<VisualElement>("menu-panel");
 
-        // 3. Buscamos los elementos interactivos
+        // 2. Referencias de Login
         usernameField = root.Q<TextField>("username-input");
         passwordField = root.Q<TextField>("password-input");
         statusLabel = root.Q<Label>("status-text");
         loginButton = root.Q<Button>("login-button");
         registerButton = root.Q<Button>("register-button");
 
-        // Por seguridad, forzamos que al inicio se vea el login y no el menú
-        loginPanel.style.display = DisplayStyle.Flex;
-        menuPanel.style.display = DisplayStyle.None;
+        // 3. Referencias de Menú (Buscamos dentro de root o menuPanel)
+        singlePlayerButton = root.Q<Button>("singleplayer-button");
+        var logoutButton = root.Q<Button>("logout-button");
 
-        // Asignamos los botones
+        // --- EVENTOS ---
+
+        // Login y Registro
         loginButton.clicked += () => StartCoroutine(SendAuth("/login"));
         registerButton.clicked += () => StartCoroutine(SendAuth("/register"));
-        
-        // (Opcional) Asignamos el botón de cerrar sesión para que haga lo contrario
-        var logoutButton = root.Q<Button>("logout-button");
-        if (logoutButton != null)
+
+        // Botón de Singleplayer -> ¡A jugar!
+        if (singlePlayerButton != null)
         {
-            logoutButton.clicked += () => 
-            {
-                menuPanel.style.display = DisplayStyle.None;
-                loginPanel.style.display = DisplayStyle.Flex;
-                statusLabel.text = "Sessió tancada.";
+            singlePlayerButton.clicked += () => {
+                Debug.Log("Iniciando aventura en solitario...");
+                SceneManager.LoadScene("Juego"); // Asegúrate de que se llame así en Build Settings
             };
         }
+
+        // Botón Logout -> Volver atrás
+        if (logoutButton != null)
+        {
+            logoutButton.clicked += () => {
+                menuPanel.style.display = DisplayStyle.None;
+                loginPanel.style.display = DisplayStyle.Flex;
+            };
+        }
+
+        // Estado inicial
+        loginPanel.style.display = DisplayStyle.Flex;
+        menuPanel.style.display = DisplayStyle.None;
     }
 
     IEnumerator SendAuth(string endpoint)
     {
-        statusLabel.text = "Connectant amb el servidor...";
+        statusLabel.text = "Connectant...";
         
         string json = $"{{\"username\":\"{usernameField.value}\", \"password\":\"{passwordField.value}\"}}";
         byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
@@ -70,13 +84,11 @@ public class LoginController : MonoBehaviour
         yield return request.SendWebRequest();
 
         if (request.result == UnityWebRequest.Result.Success) {
-            statusLabel.text = "Sessió iniciada correctament!";
-            
-            loginPanel.style.display = DisplayStyle.None; // Ocultamos el Login
-            menuPanel.style.display = DisplayStyle.Flex;  // Mostramos el Menú
-            
+            statusLabel.text = "¡Éxito!";
+            loginPanel.style.display = DisplayStyle.None;
+            menuPanel.style.display = DisplayStyle.Flex;
         } else {
-            statusLabel.text = "Error: Credencials incorrectes";
+            statusLabel.text = "Error de conexión o datos incorrectos";
         }
     }
 }
